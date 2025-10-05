@@ -190,24 +190,138 @@ class ConcretePassportService:
 ## IPFS Integration Strategy
 
 ### Data Storage Architecture
+
+Based on the 13-point DeSci Data Package Passport, our IPFS structure separates on-chain verification hashes from off-chain bulk data:
+
 ```
-IPFS Structure:
-├── /concrete-formulations/
-│   ├── material-composition.json
-│   ├── mixing-ratios.json
-│   └── additive-specifications.json
-├── /test-results/
-│   ├── compression-tests/
-│   ├── tensile-strength/
-│   └── durability-studies/
-├── /manufacturing-data/
-│   ├── 3d-printing-parameters/
-│   ├── environmental-conditions/
-│   └── quality-images/
-└── /certifications/
-    ├── lab-reports.pdf
-    ├── compliance-docs.pdf
-    └── inspection-photos/
+ipfs://QmMainManifest/
+├── manifest.json                           # Main manifest with all sub-hashes
+├── /raw-materials/
+│   ├── material-001-certificate.json       # Cement batch certificate
+│   ├── material-002-certificate.json       # Aggregate batch certificate
+│   ├── material-003-certificate.json       # Admixture batch certificate
+│   └── supplier-certifications.pdf         # Supporting documents
+├── /formulation/
+│   ├── mix-design.json                     # Target mix design (#3)
+│   ├── rheological-properties.json         # Target rheology specs (#4)
+│   └── formulation-metadata.json           # Additional specs
+├── /production/
+│   ├── gcode-file.gcode                    # Full G-code file (#5)
+│   ├── gcode-metadata.json                 # G-code analysis
+│   ├── environmental-targets.json          # Target ambient conditions (#6)
+│   └── production-plan.json                # Process planning data
+├── /process-data/
+│   ├── sensor-data/
+│   │   ├── pressure-timeseries.json        # Time-series pressure data (#7)
+│   │   ├── flow-rate-timeseries.json       # Flow rate measurements (#7)
+│   │   ├── rheology-inline.json            # In-line rheometer data (#7)
+│   │   └── environmental-actual.json       # Actual temp/humidity (#7)
+│   ├── vision-data/
+│   │   ├── layer-images/                   # Per-layer photos (#8)
+│   │   ├── scan-data/                      # 3D scan point clouds (#8)
+│   │   ├── deviation-heatmaps/             # Quality deviation maps (#8)
+│   │   └── vision-summary.json             # Vision analysis summary
+│   └── mllm-logs/
+│       ├── prompts/                        # mLLM prompts by timestamp (#9)
+│       ├── responses/                      # mLLM JSON responses (#9)
+│       └── compensatory-gcode/             # AI-generated corrections (#10)
+├── /testing/
+│   ├── mechanical-tests/
+│   │   ├── compression-test-results.json   # ASTM C39 compression (#11)
+│   │   ├── flexural-test-results.json      # Flexural strength (#11)
+│   │   ├── tensile-test-results.json       # Tensile strength (#11)
+│   │   └── test-specimen-photos/
+│   ├── non-destructive/
+│   │   ├── ultrasonic-tests.json
+│   │   ├── rebound-hammer.json
+│   │   └── ndt-images/
+│   └── test-reports/
+│       ├── lab-report-final.pdf
+│       ├── astm-compliance-docs.pdf
+│       └── quality-certification.pdf
+└── /certification/
+    ├── final-grade-report.json             # Grade assignment details (#12)
+    ├── certification-metadata.json         # Certification context (#13)
+    ├── inspector-signatures.json           # Digital signatures
+    └── compliance-documents/
+        ├── building-code-compliance.pdf
+        └── structural-certification.pdf
+```
+
+### On-Chain vs Off-Chain Data Split
+
+**On-Chain (Smart Contract):**
+- Production Package ID (Token ID) → `#1`
+- Raw Material Hashes → `#2`
+- G-code Hash → `#5`
+- Final Quality Grade → `#12`
+- Final Certification Hash → `#13`
+- Lab Address & Timestamps
+- Finalization Status
+
+**Off-Chain (IPFS):**
+- Mix Design → `#3`
+- Rheological Properties → `#4`
+- Environmental Targets → `#6`
+- Sensor Time-Series Data → `#7`
+- Vision & Scan Data → `#8`
+- mLLM Logs → `#9`
+- Compensatory G-code → `#10`
+- Mechanical Test Results → `#11`
+
+### Key JSON Schemas
+
+#### Main Manifest (`manifest.json`)
+```json
+{
+  "version": "1.0.0",
+  "packageId": "PROD-2024-001",
+  "materialId": "MIX-001-2024",
+  "createdAt": "2024-10-05T12:00:00Z",
+  "labPublicKey": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb",
+  "dataPackageType": "3D-Concrete-Production",
+  "ipfsHashes": {
+    "rawMaterials": { "material001": "QmHash1...", "material002": "QmHash2..." },
+    "formulation": { "mixDesign": "QmHash4...", "rheology": "QmHash5..." },
+    "production": { "gcode": "QmHash6...", "environmentalTargets": "QmHash7..." },
+    "processData": { "sensorData": "QmHash8...", "visionData": "QmHash9...", "mllmLogs": "QmHash10..." },
+    "testing": { "mechanicalTests": "QmHash11...", "finalReports": "QmHash12..." },
+    "certification": { "finalGrade": "QmHash13...", "certificationDocs": "QmHash14..." }
+  },
+  "cryptographicProofs": {
+    "manifestHash": "0xabcdef...",
+    "gcodeHash": "0x123456...",
+    "certificationHash": "0x789abc..."
+  }
+}
+```
+
+#### Sensor Time-Series Data Example
+```json
+{
+  "sensor": { "type": "Pressure Transducer", "model": "Omega PX409-030GI", "location": "Extruder Inlet" },
+  "dataPoints": [
+    { "timestamp": "2024-10-05T10:00:00.000Z", "value": 1.45, "quality": "good" },
+    { "timestamp": "2024-10-05T10:00:00.100Z", "value": 1.47, "quality": "good" }
+  ],
+  "statistics": { "mean": 1.52, "stdDev": 0.08, "outOfSpecCount": 3 }
+}
+```
+
+#### mLLM Prompt/Response Example
+```json
+{
+  "timestamp": "2024-10-05T12:00:00.000Z",
+  "prompt": {
+    "type": "defect-analysis",
+    "context": "Layer 23 - Bead deformation detected",
+    "inputs": { "visionImage": "ipfs://QmLayerImage023...", "sensorData": {...} }
+  },
+  "response": {
+    "diagnosis": "Material flow inconsistency due to ambient temperature increase",
+    "recommendations": { "immediate": ["Reduce print speed by 15%"], "compensatoryGcode": ["M220 S85"] }
+  }
+}
 ```
 
 ### IPFS Services
@@ -215,23 +329,83 @@ IPFS Structure:
 2. **Infura IPFS**: Reliable gateway and pinning service
 3. **Local IPFS Node**: For testing and development
 
+### IPFS Pinning Strategy
+
+**Critical Data (Always Pin):**
+- Main manifest
+- Material certificates
+- Mix design & rheology specs
+- G-code metadata
+- Final test results
+- Certification documents
+
+**Optional Pinning:**
+- Full sensor time-series (archive after 2 years)
+- Layer images (archive after 1 year)
+- 3D scan data (on-demand retrieval)
+
 ### Implementation
 ```python
 import ipfshttpclient
+import json
+import hashlib
 
-class IPFSService:
-    def __init__(self):
-        self.client = ipfshttpclient.connect('/dns/localhost/tcp/5001/http')
+class DeSciIPFSService:
+    def __init__(self, ipfs_endpoint='/dns/localhost/tcp/5001/http'):
+        self.client = ipfshttpclient.connect(ipfs_endpoint)
 
-    def upload_json(self, data):
-        return self.client.add_json(data)
+    def upload_manifest(self, production_data):
+        """Upload complete production data package"""
+        manifest = self._create_manifest(production_data)
+        manifest_hash = self.client.add_json(manifest)
+        return manifest_hash
+
+    def upload_sensor_data(self, sensor_readings):
+        """Upload time-series sensor data"""
+        return self.client.add_json(sensor_readings)
 
     def upload_file(self, file_path):
+        """Upload binary file (images, PDFs, G-code)"""
         return self.client.add(file_path)
 
-    def get_data(self, ipfs_hash):
+    def get_manifest(self, ipfs_hash):
+        """Retrieve manifest from IPFS"""
         return self.client.get_json(ipfs_hash)
+
+    def verify_hash(self, ipfs_hash, expected_hash):
+        """Verify data integrity against on-chain hash"""
+        data = self.client.cat(ipfs_hash)
+        actual_hash = hashlib.sha256(data).hexdigest()
+        return actual_hash == expected_hash
+
+    def pin_critical_data(self, ipfs_hash):
+        """Pin critical data permanently"""
+        return self.client.pin.add(ipfs_hash)
+
+    def _create_manifest(self, production_data):
+        """Create manifest JSON with all IPFS hashes"""
+        return {
+            "version": "1.0.0",
+            "packageId": production_data.get("packageId"),
+            "materialId": production_data.get("materialId"),
+            "ipfsHashes": production_data.get("ipfsHashes"),
+            "cryptographicProofs": production_data.get("cryptographicProofs")
+        }
 ```
+
+### File Size Estimates
+
+| Data Type | Size | Storage Strategy |
+|-----------|------|------------------|
+| Manifest JSON | 5-10 KB | IPFS (pinned) |
+| Material Certificates | 10-50 KB each | IPFS (pinned) |
+| Sensor Time-Series | 500 KB - 5 MB each | IPFS (optional) |
+| Layer Images | 200 KB - 2 MB each | IPFS (optional) |
+| 3D Scans | 5-50 MB each | IPFS (optional) |
+| mLLM Logs | 1-10 MB total | IPFS (pinned) |
+| Test Reports | 1-5 MB | IPFS (pinned) |
+
+**Total Package Size:** 100-500 MB per production run
 
 ---
 
